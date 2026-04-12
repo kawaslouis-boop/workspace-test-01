@@ -1,9 +1,8 @@
-name: Transmision Radio 24/7 - Shuffle y Auto-Reinicio
+name: Transmision Radio 24/7 - V17 Estabilidad Pro
 
 on:
   workflow_dispatch:
   schedule:
-    # SE REINICIA SOLO CADA 6 HORAS (00:00, 06:00, 12:00, 18:00 UTC)
     - cron: '0 */6 * * *'
 
 jobs:
@@ -19,32 +18,39 @@ jobs:
       - name: 3. Preparación y Transmisión Aleatoria
         shell: bash
         run: |
-          # A. Crear video de fondo estable
+          # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. RENOMBRADO PREVENTIVO (Elimina errores de nombres de raíz)
-          # Convertimos todo a nombres simples: song_1.mp3, song_2.mp3...
-          echo "Simplificando nombres de archivos..."
+          # B. NORMALIZACIÓN TOTAL (Nombres cortos y sin símbolos)
+          echo "Simplificando nombres de canciones..."
           i=1
           for f in *.mp3; do
-            mv "$f" "song_$i.mp3"
+            # Renombramos a nombres temporales para evitar conflictos si ya existen song_X
+            mv "$f" "temp_$i.mp3"
             i=$((i+1))
           done
+          
+          # Renombrado final a formato limpio
+          j=1
+          for f in temp_*.mp3; do
+            mv "$f" "s$j.mp3"
+            j=$((j+1))
+          done
 
-          # C. MODO ALEATORIO (Shuffle)
-          # Barajamos los archivos y creamos la lista de reproducción
-          ls song_*.mp3 | shuf > lista_barajada.txt
+          # C. GENERAR LISTA ALEATORIA (Con rutas relativas simples)
+          ls s*.mp3 | shuf > lista_mezclada.txt
           rm -f list.txt
           while read -r song; do
-            echo "file '$PWD/$song'" >> list.txt
-          done < lista_barajada.txt
+            # Usamos solo el nombre del archivo, sin la ruta larga de /home/runner/...
+            echo "file '$song'" >> list.txt
+          done < lista_mezclada.txt
 
-          echo "--- ORDEN ALEATORIO GENERADO ---"
+          echo "--- BITÁCORA DE REPRODUCCIÓN ---"
           cat list.txt
-          echo "--------------------------------"
+          echo "-------------------------------"
 
-          # D. TRANSMISIÓN CON RE-CODIFICACIÓN (Evita el Segmentation Fault)
-          # No usamos "copy" para que FFmpeg estandarice todas las canciones al vuelo
+          # D. TRANSMISIÓN BROADCAST
+          # Agregamos -safe 0 para que acepte la lista sin problemas de permisos
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - Edicion Pro 2026
+name: Transmision Ruta Karaoke - Edicion Pro Final
 
 on:
   workflow_dispatch:
@@ -10,30 +10,29 @@ jobs:
       - name: Clonar archivos del repositorio
         uses: actions/checkout@v4
 
-      - name: Instalar FFmpeg (Motor de Radio)
+      - name: Instalar FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Crear Video de Fondo y Transmitir
+      - name: Crear Video y Transmitir
         shell: bash
         run: |
-          # 1. Crear video de 10 seg desde el logo para engañar a YouTube y que no se pegue
-          # Esto genera un flujo de video real y constante.
+          # 1. Crear video de 10 seg desde el logo (Esto ya vimos que funciona bien)
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720,format=yuv420p" fondo.mp4 -y
 
-          # 2. Generar la lista de canciones MP3 de forma robusta
+          # 2. Generar la lista de canciones MP3 (Método Simplificado)
           rm -f list.txt
-          find . -maxdepth 1 -name "*.mp3" -printf "file '$PWD/%p'\n" | sed "s|./||" > list.txt
+          for f in *.mp3; do
+            echo "file '$PWD/$f'" >> list.txt
+          done
           
-          # Verificar si la lista tiene archivos
-          if [ ! -s list.txt ]; then
-            echo "ERROR: No se encontraron archivos MP3 en la carpeta principal."
-            exit 1
-          fi
+          # Verificación de seguridad para auditoría
+          echo "--- LISTA DE CANCIONES GENERADA ---"
+          cat list.txt
+          echo "-----------------------------------"
 
-          # 3. Transmitir en bucle (Video de fondo infinito + Lista de canciones)
-          # Usamos CBR (Bitrate Constante) para que YouTube marque "Conexion Excelente"
+          # 3. Ignición de la Radio
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \

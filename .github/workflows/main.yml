@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V22 Blindaje Final
+name: Transmision Ruta Karaoke - V23 Final
 
 on:
   workflow_dispatch:
@@ -15,22 +15,24 @@ jobs:
       - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 3. Auditoría y Transmisión Aleatoria
+      - name: 3. Auditoría y Transmisión
         shell: bash
+        env:
+          # Mapeamos la llave aquí para que sea infalible
+          MY_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Video de fondo
+          # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Limpiar y organizar música (Búsqueda profunda)
+          # B. Limpieza y validación de archivos
           mkdir -p radio_music
           count=0
-          # Buscamos archivos .mp3 en raíz y carpetas, ignorando la carpeta de destino
-          find . -maxdepth 2 -iname "*.mp3" ! -path "./radio_music/*" | while read -r f; do
+          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
               cp "$f" "radio_music/s_$count.mp3"
               count=$((count+1))
             else
-              echo "SALTADO (Dañado): $f"
+              echo "ARCHIVO CORRUPTO ELIMINADO: $f"
             fi
           done
 
@@ -43,12 +45,11 @@ jobs:
 
           echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # D. Transmisión (Sintaxis corregida con el símbolo $)
+          # D. TRANSMISIÓN (URL Corregida y Llave Segura)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
-          _KEY }}"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$MY_STREAM_KEY"

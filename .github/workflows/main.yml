@@ -8,12 +8,12 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: |
-          # 1. Escanear y barajar la lista de canciones
+          # 1. Escanear y barajar la lista
           rm -f list.txt
           for f in *.mp3; do ffprobe -v error "$f" >/dev/null 2>&1 && echo "file '$f'" >> list.txt; done
           shuf list.txt > list_final.txt
           
-          # 2. Transmisión de puro audio (96k / 44.1kHz)
+          # 2. Transmisión calibrada con filtro -vn para ignorar carátulas
           ffmpeg -re -stream_loop -1 -f concat -safe 0 -i list_final.txt \
-          -c:a libmp3lame -b:a 96k -ar 44100 -content_type audio/mpeg \
+          -vn -c:a libmp3lame -b:a 96k -ar 44100 -content_type audio/mpeg \
           -f mp3 "icecast://source:4CRwycMC@95.217.111.220:9120/live"

@@ -16,13 +16,15 @@ jobs:
       - name: Transmitir a YouTube
         shell: bash
         run: |
-          # Crear lista de reproducción
+          # Generamos la lista de archivos de forma segura
+          # OJO: Si tienes archivos con comillas simples ('), este comando los limpia
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # Comando optimizado para estabilidad de imagen fija (CBR)
-          ffmpeg -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
-          -c:v libx264 -preset veryfast -tune stillimage -pix_fmt yuv420p \
+          # COMANDO MAESTRO DE ESTABILIDAD
+          ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
+          -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
           -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" \
-          -r 30 -g 60 -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
-          -c:a aac -b:a 128k -ar 44100 -shortest \
+          -r 30 -g 60 -x264-params "keyint=60:min-keyint=60:scenecut=0" \
+          -b:v 1500k -minrate 1500k -maxrate 1500k -bufsize 3000k \
+          -c:a aac -b:a 128k -ar 48000 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

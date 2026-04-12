@@ -16,15 +16,14 @@ jobs:
       - name: Transmitir a YouTube
         shell: bash
         run: |
-          # Limpiar y crear lista de canciones
+          # Creamos la lista de canciones limpiando cualquier rastro anterior
           rm -f list.txt
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # COMANDO DE ESTABILIDAD NIVEL BROADCAST
+          # COMANDO DE FUERZA BRUTA PARA IMAGEN FIJA
           ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
           -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
           -vf "scale=1280:720,format=yuv420p" \
-          -r 30 -g 30 -keyint_min 30 -x264-params "keyint=30:min-keyint=30:scenecut=0:nal-hrd=cbr:force-cfr=1" \
-          -b:v 2000k -minrate 2000k -maxrate 2000k -bufsize 4000k \
+          -r 30 -g 60 -b:v 3000k -minrate 3000k -maxrate 3000k -bufsize 6000k \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

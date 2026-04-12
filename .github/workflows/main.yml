@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke
+name: Transmision Ruta Karaoke - Estabilidad Pro
 
 on:
   workflow_dispatch:
@@ -10,21 +10,22 @@ jobs:
       - name: Clonar archivos
         uses: actions/checkout@v3
 
-      - name: Instalar FFmpeg
+      - name: Instalar FFmpeg en la Nube
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Transmitir a YouTube
+      - name: Crear Video y Transmitir
         shell: bash
         run: |
-          # Limpiar y crear lista de canciones
+          # 1. Convertimos tu logo.png en un video de 10 segundos (lo hace GitHub)
+          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4
+          
+          # 2. Creamos la lista de canciones
           rm -f list.txt
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # COMANDO MAESTRO: Forzamos el flujo de datos constante (CBR)
-          ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
-          -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
-          -vf "scale=1280:720,format=yuv420p" \
-          -r 30 -g 60 -keyint_min 60 -x264-params "keyint=60:min-keyint=60:scenecut=0:nal-hrd=cbr" \
-          -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
+          # 3. Transmitimos el video en bucle + tus canciones
+          ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
+          -c:v libx264 -preset ultrafast -tune stillimage \
+          -b:v 2000k -maxrate 2000k -bufsize 4000k \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

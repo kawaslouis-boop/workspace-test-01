@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - Diagnostico
+name: Transmision Ruta Karaoke - Blindaje Final
 
 on:
   workflow_dispatch:
@@ -10,37 +10,37 @@ jobs:
       - name: 1. Clonar archivos
         uses: actions/checkout@v4
 
-      - name: 2. Inspeccion de Auditoria (Ver archivos)
-        run: |
-          echo "Buscando archivos en la carpeta..."
-          ls -R
-          echo "-----------------------------------"
-
-      - name: 3. Instalar FFmpeg
+      - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 4. Crear Video y Transmitir
+      - name: 3. Limpieza de Nombres y Transmisión
         shell: bash
         run: |
-          # Crear video de fondo
+          # A. Crear video de fondo desde tu logo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # Crear lista de canciones de forma segura
-          rm -f list.txt
+          # B. NORMALIZAR NOMBRES (Quitar espacios y tildes automáticamente)
+          echo "Normalizando nombres de canciones..."
           for f in *.mp3; do
             [ -e "$f" ] || continue
-            echo "file '$PWD/$f'" >> list.txt
+            # Quitamos espacios y caracteres especiales para que FFmpeg no se trabe
+            nuevo_nombre=$(echo "$f" | tr ' ' '_' | sed 's/[áéíóúÁÉÍÓÚ]/x/g')
+            mv "$f" "$nuevo_nombre"
           done
 
-          # Si la lista esta vacia, dar error claro
-          if [ ! -f list.txt ]; then
-            echo "ERROR CRITICO: No se encontraron archivos MP3."
-            exit 1
-          fi
+          # C. Generar lista de reproducción limpia
+          rm -f list.txt
+          for f in *.mp3; do
+            echo "file '$PWD/$f'" >> list.txt
+          done
+          
+          echo "--- LISTA AUDITADA ---"
+          cat list.txt
+          echo "----------------------"
 
-          # Transmitir
+          # D. IGNICIÓN DE LA RADIO (Bitrate constante para evitar el buffering)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
           -c:v libx264 -preset ultrafast -tune stillimage \
-          -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
+          -b:v 2000k -minrate 2000k -maxrate 2000k -bufsize 4000k \
           -r 30 -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

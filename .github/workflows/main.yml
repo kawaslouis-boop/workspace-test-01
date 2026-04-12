@@ -17,7 +17,6 @@ jobs:
         shell: bash
         run: |
           # Generamos la lista de archivos de forma segura
-          # OJO: Si tienes archivos con comillas simples ('), este comando los limpia
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
           # COMANDO MAESTRO DE ESTABILIDAD

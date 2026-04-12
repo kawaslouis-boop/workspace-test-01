@@ -1,4 +1,4 @@
-name: Transmision Radio 24/7 - V17 Estabilidad Pro
+name: Transmision Ruta Karaoke - V18 Saca Bucle
 
 on:
   workflow_dispatch:
@@ -15,42 +15,32 @@ jobs:
       - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 3. Preparación y Transmisión Aleatoria
+      - name: 3. Auditoría de Inventario y Transmisión
         shell: bash
         run: |
-          # A. Crear video de fondo
+          # A. Crear video de fondo estable
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. NORMALIZACIÓN TOTAL (Nombres cortos y sin símbolos)
-          echo "Simplificando nombres de canciones..."
+          # B. BUSCADOR AGRESIVO (Encuentra archivos en cualquier carpeta)
+          echo "Buscando todas las canciones en el repositorio..."
+          find . -name "*.mp3" -exec mv {} . \; 2>/dev/null || true
+
+          # C. NORMALIZACIÓN Y CONTEO
           i=1
           for f in *.mp3; do
-            # Renombramos a nombres temporales para evitar conflictos si ya existen song_X
-            mv "$f" "temp_$i.mp3"
+            mv "$f" "pista_$i.mp3"
             i=$((i+1))
           done
-          
-          # Renombrado final a formato limpio
-          j=1
-          for f in temp_*.mp3; do
-            mv "$f" "s$j.mp3"
-            j=$((j+1))
-          done
+          echo "AUDITORÍA: Se encontraron $((i-1)) canciones para la radio."
 
-          # C. GENERAR LISTA ALEATORIA (Con rutas relativas simples)
-          ls s*.mp3 | shuf > lista_mezclada.txt
+          # D. SHUFFLE (Mezcla total)
+          ls pista_*.mp3 | shuf > lista_final.txt
           rm -f list.txt
           while read -r song; do
-            # Usamos solo el nombre del archivo, sin la ruta larga de /home/runner/...
             echo "file '$song'" >> list.txt
-          done < lista_mezclada.txt
+          done < lista_final.txt
 
-          echo "--- BITÁCORA DE REPRODUCCIÓN ---"
-          cat list.txt
-          echo "-------------------------------"
-
-          # D. TRANSMISIÓN BROADCAST
-          # Agregamos -safe 0 para que acepte la lista sin problemas de permisos
+          # E. TRANSMISIÓN (Recodificando para evitar que se pegue)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

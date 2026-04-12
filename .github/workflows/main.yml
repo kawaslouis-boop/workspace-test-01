@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - Edicion Pro Final
+name: Transmision Ruta Karaoke - Diagnostico
 
 on:
   workflow_dispatch:
@@ -7,35 +7,40 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: Clonar archivos del repositorio
+      - name: 1. Clonar archivos
         uses: actions/checkout@v4
 
-      - name: Instalar FFmpeg
+      - name: 2. Inspeccion de Auditoria (Ver archivos)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Crear Video y Transmitir
-        shell: bash
-        run: |
-          # 1. Crear video de 10 seg desde el logo (Esto ya vimos que funciona bien)
-          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720,format=yuv420p" fondo.mp4 -y
-
-          # 2. Generar la lista de canciones MP3 (Método Simplificado)
-          rm -f list.txt
-          for f in *.mp3; do
-            echo "file '$PWD/$f'" >> list.txt
-          done
-          
-          # Verificación de seguridad para auditoría
-          echo "--- LISTA DE CANCIONES GENERADA ---"
-          cat list.txt
+          echo "Buscando archivos en la carpeta..."
+          ls -R
           echo "-----------------------------------"
 
-          # 3. Ignición de la Radio
+      - name: 3. Instalar FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: 4. Crear Video y Transmitir
+        shell: bash
+        run: |
+          # Crear video de fondo
+          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
+
+          # Crear lista de canciones de forma segura
+          rm -f list.txt
+          for f in *.mp3; do
+            [ -e "$f" ] || continue
+            echo "file '$PWD/$f'" >> list.txt
+          done
+
+          # Si la lista esta vacia, dar error claro
+          if [ ! -f list.txt ]; then
+            echo "ERROR CRITICO: No se encontraron archivos MP3."
+            exit 1
+          fi
+
+          # Transmitir
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
-          -r 30 -g 60 -keyint_min 60 -x264-params "keyint=60:min-keyint=60:scenecut=0" \
-          -c:a aac -b:a 128k -ar 44100 \
+          -r 30 -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

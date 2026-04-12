@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - Estabilidad Pro
+name: Transmision Ruta Karaoke - Edicion Pro 2026
 
 on:
   workflow_dispatch:
@@ -7,25 +7,36 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: Clonar archivos
-        uses: actions/checkout@v3
+      - name: Clonar archivos del repositorio
+        uses: actions/checkout@v4
 
-      - name: Instalar FFmpeg en la Nube
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Instalar FFmpeg (Motor de Radio)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
-      - name: Crear Video y Transmitir
+      - name: Crear Video de Fondo y Transmitir
         shell: bash
         run: |
-          # 1. Convertimos tu logo.png en un video de 10 segundos (lo hace GitHub)
-          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4
-          
-          # 2. Creamos la lista de canciones
+          # 1. Crear video de 10 seg desde el logo para engañar a YouTube y que no se pegue
+          # Esto genera un flujo de video real y constante.
+          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720,format=yuv420p" fondo.mp4 -y
+
+          # 2. Generar la lista de canciones MP3 de forma robusta
           rm -f list.txt
-          for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
+          find . -maxdepth 1 -name "*.mp3" -printf "file '$PWD/%p'\n" | sed "s|./||" > list.txt
           
-          # 3. Transmitimos el video en bucle + tus canciones
+          # Verificar si la lista tiene archivos
+          if [ ! -s list.txt ]; then
+            echo "ERROR: No se encontraron archivos MP3 en la carpeta principal."
+            exit 1
+          fi
+
+          # 3. Transmitir en bucle (Video de fondo infinito + Lista de canciones)
+          # Usamos CBR (Bitrate Constante) para que YouTube marque "Conexion Excelente"
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
           -c:v libx264 -preset ultrafast -tune stillimage \
-          -b:v 2000k -maxrate 2000k -bufsize 4000k \
+          -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
+          -r 30 -g 60 -keyint_min 60 -x264-params "keyint=60:min-keyint=60:scenecut=0" \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V27 Victoria Final
+name: Transmision Ruta Karaoke - V28 Final
 
 on:
   workflow_dispatch:
@@ -18,39 +18,37 @@ jobs:
       - name: 3. Auditoría y Transmisión
         shell: bash
         env:
-          # Aquí amarramos la llave con doble candado
-          LLAVE_YOUTUBE: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          # Aquí guardamos la llave en una variable segura
+          CLAVE_YOUTUBE: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Video de fondo
+          # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Filtrar canciones (Si ffprobe falla, la canción se descarta)
-          mkdir -p lista_limpia
-          count=0
-          for f in *.mp3; do
+          # B. Limpieza de canciones (Mover solo las buenas)
+          mkdir -p radio_music
+          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "lista_limpia/s_$count.mp3"
-              count=$((count+1))
+              cp "$f" "radio_music/"
             else
-              echo "CANCION DAÑADA DESCARTADA: $f"
+              echo "CANCION DAÑADA SALTADA: $f"
             fi
           done
 
-          # C. Crear lista aleatoria
-          ls lista_limpia/*.mp3 | shuf > playlist.txt
+          # C. Shuffle (Mezcla)
+          ls radio_music/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
           done < playlist.txt
 
-          echo "AUDITORÍA: Tenemos $count canciones listas para sonar."
+          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones."
 
-          # D. Transmitir (Usando la variable segura $LLAVE_YOUTUBE)
+          # D. TRANSMISIÓN (Usando la variable segura $CLAVE_YOUTUBE)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$LLAVE_
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$CLAVE_
           YOUTUBE"

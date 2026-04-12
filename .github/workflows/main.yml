@@ -20,7 +20,7 @@ jobs:
           for f in *.mp3; do ffprobe -v error "$f" >/dev/null 2>&1 && echo "file '$f'" >> list.txt; done
           shuf list.txt > list_final.txt
           
-          # 2. Conexión DIRECTA a la antena principal (Bypass de AutoDJ)
+          # 2. Conexión DIRECTA a la antena Icecast (Puerto 9120)
           ffmpeg -re -stream_loop -1 -f concat -safe 0 -i list_final.txt \
           -vn -c:a libmp3lame -b:a 96k -ar 44100 -content_type audio/mpeg \
           -ice_name "Ruta Karaoke" \

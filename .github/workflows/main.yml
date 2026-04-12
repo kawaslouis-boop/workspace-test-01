@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V32 Final Corregida
+name: Transmision Ruta Karaoke - V33 Victoria Real
 
 on:
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: 3. Auditoría y Transmisión
         shell: bash
         run: |
-          # A. Crear video de fondo
+          # A. Video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
           # B. Limpieza de canciones (Ignorar archivos corruptos)
@@ -29,11 +29,11 @@ jobs:
               cp "$f" "radio_music/s_$count.mp3"
               count=$((count+1))
             else
-              echo "SALTADO POR DAÑADO: $f"
+              echo "RECHAZADO: $f"
             fi
           done
 
-          # C. Shuffle (Mezcla)
+          # C. Mezcla Aleatoria
           ls radio_music/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
@@ -42,7 +42,7 @@ jobs:
 
           echo "AUDITORÍA: Radio lista con $count canciones válidas."
 
-          # D. TRANSMISIÓN (URL Real de YouTube y Llave en una sola línea)
+          # D. TRANSMISIÓN (URL OFICIAL Y LLAVE EN UNA SOLA LÍNEA)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

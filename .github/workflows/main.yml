@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V31 Final Correcta
+name: Transmision Ruta Karaoke - V32 Final Corregida
 
 on:
   workflow_dispatch:
@@ -18,30 +18,31 @@ jobs:
       - name: 3. Auditoría y Transmisión
         shell: bash
         run: |
-          # A. Crear video de fondo estable
+          # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Organizar música (Saltar archivos corruptos)
+          # B. Limpieza de canciones (Ignorar archivos corruptos)
           mkdir -p radio_music
+          count=0
           find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "radio_music/"
+              cp "$f" "radio_music/s_$count.mp3"
+              count=$((count+1))
             else
-              echo "Archivo dañado ignorado: $f"
+              echo "SALTADO POR DAÑADO: $f"
             fi
           done
 
-          # C. Crear lista de reproducción aleatoria
+          # C. Shuffle (Mezcla)
           ls radio_music/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
           done < playlist.txt
 
-          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
+          echo "AUDITORÍA: Radio lista con $count canciones válidas."
 
-          # D. TRANSMISIÓN (Utilizando el servidor OFICIAL de YouTube)
-          # La dirección debe ser rtmp://a.rtmp.youtube.com/live2/ seguida de la clave
+          # D. TRANSMISIÓN (URL Real de YouTube y Llave en una sola línea)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

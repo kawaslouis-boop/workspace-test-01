@@ -16,13 +16,13 @@ jobs:
       - name: Transmitir a YouTube
         shell: bash
         run: |
-          # Generamos la lista de canciones
+          # Crear lista de reproducción
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # Ajuste Pro: Forzamos 30 frames por segundo y sintonía de imagen fija
-          ffmpeg -loop 1 -i logo.png -re -f concat -safe 0 -i list.txt \
-          -c:v libx264 -preset ultrafast -tune stillimage \
-          -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
-          -r 30 -g 60 -b:v 2500k -maxrate 2500k -bufsize 5000k \
-          -c:a aac -b:a 128k -ar 44100 \
+          # Comando optimizado para estabilidad de imagen fija (CBR)
+          ffmpeg -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
+          -c:v libx264 -preset veryfast -tune stillimage -pix_fmt yuv420p \
+          -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2" \
+          -r 30 -g 60 -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
+          -c:a aac -b:a 128k -ar 44100 -shortest \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

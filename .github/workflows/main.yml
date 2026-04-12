@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V30 Estable
+name: Transmision Ruta Karaoke - V31 Final Correcta
 
 on:
   workflow_dispatch:
@@ -17,38 +17,36 @@ jobs:
 
       - name: 3. Auditoría y Transmisión
         shell: bash
-        env:
-          # Se asigna el secreto a una variable de entorno segura
-          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Crear video de fondo
+          # A. Crear video de fondo estable
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Filtrar canciones (Ignorar las que dan error)
-          mkdir -p music_checked
-          for f in *.mp3; do
+          # B. Organizar música (Saltar archivos corruptos)
+          mkdir -p radio_music
+          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "music_checked/"
+              cp "$f" "radio_music/"
             else
-              echo "Archivo descartado por error: $f"
+              echo "Archivo dañado ignorado: $f"
             fi
           done
 
-          # C. Generar lista aleatoria
-          ls music_checked/*.mp3 | shuf > playlist.txt
+          # C. Crear lista de reproducción aleatoria
+          ls radio_music/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
           done < playlist.txt
 
-          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones."
+          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # D. TRANSMISIÓN (Utilizando el servidor oficial de YouTube)
+          # D. TRANSMISIÓN (Utilizando el servidor OFICIAL de YouTube)
+          # La dirección debe ser rtmp://a.rtmp.youtube.com/live2/ seguida de la clave
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUT
-          UBE_KEY"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
+          _KEY }}"

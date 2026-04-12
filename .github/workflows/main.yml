@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V23 Final
+name: Transmision Ruta Karaoke - V24 Estable
 
 on:
   workflow_dispatch:
@@ -15,29 +15,26 @@ jobs:
       - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 3. Auditoría y Transmisión
+      - name: 3. Auditoría y Transmisión Aleatoria
         shell: bash
-        env:
-          # Mapeamos la llave aquí para que sea infalible
-          MY_STREAM_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Limpieza y validación de archivos
-          mkdir -p radio_music
+          # B. Limpieza de canciones (Saltar archivos corruptos como pista_2)
+          mkdir -p musica_radio
           count=0
           find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "radio_music/s_$count.mp3"
+              cp "$f" "musica_radio/s_$count.mp3"
               count=$((count+1))
             else
-              echo "ARCHIVO CORRUPTO ELIMINADO: $f"
+              echo "RECHAZADO POR DAÑADO: $f"
             fi
           done
 
           # C. Shuffle (Barajado Aleatorio)
-          ls radio_music/*.mp3 | shuf > playlist.txt
+          ls musica_radio/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
@@ -45,11 +42,12 @@ jobs:
 
           echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # D. TRANSMISIÓN (URL Corregida y Llave Segura)
+          # D. TRANSMISIÓN (Sintaxis corregida con el símbolo $)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$MY_STREAM_KEY"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
+          _KEY }}"

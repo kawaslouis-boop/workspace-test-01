@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V19 Blindaje Total
+name: Transmision Ruta Karaoke - V20 Final Fijo
 
 on:
   workflow_dispatch:
@@ -12,57 +12,42 @@ jobs:
       - name: 1. Clonar archivos
         uses: actions/checkout@v4
 
-      - name: 2. Instalar FFmpeg y Herramientas
+      - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 3. Auditoría y Limpieza de Inventario
+      - name: 3. Auditoría y Transmisión Aleatoria
         shell: bash
         run: |
           # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. CREAR CARPETA LIMPIA (Para evitar choques de nombres)
-          mkdir -p musica_limpia
-          
-          # C. FILTRAR Y RENOMBRAR (Solo archivos válidos)
-          echo "Iniciando auditoría de archivos MP3..."
-          i=1
-          # Buscamos archivos .mp3 o .MP3
-          find . -maxdepth 2 -iname "*.mp3" | while read -r f; do
-            # Verificamos si FFmpeg puede leer el archivo antes de aceptarlo
+          # B. Limpieza de canciones (Ignorar las que dan error)
+          mkdir -p radio_music
+          count=0
+          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              mv "$f" "musica_limpia/s_$i.mp3"
-              echo "Aceptado: $f -> s_$i.mp3"
-              i=$((i+1))
+              cp "$f" "radio_music/s_$count.mp3"
+              count=$((count+1))
             else
-              echo "RECHAZADO (Dañado): $f"
+              echo "ARCHIVO DAÑADO SALTADO: $f"
             fi
           done
 
-          # D. MODO ALEATORIO (Shuffle)
-          cd musica_limpia
-          ls s_*.mp3 | shuf > lista_mezclada.txt
-          rm -f ../list.txt
-          while read -r song; do
-            echo "file 'musica_limpia/$song'" >> ../list.txt
-          done < lista_mezclada.txt
-          cd ..
+          # C. Shuffle (Barajado Aleatorio)
+          ls radio_music/*.mp3 | shuf > playlist.txt
+          rm -f list.txt
+          while read -r s; do
+            echo "file '$s'" >> list.txt
+          done < playlist.txt
 
-          echo "--- RESULTADO DE AUDITORÍA ---"
-          if [ -f list.txt ]; then
-             echo "Se encontraron $(wc -l < list.txt) canciones listas para sonar."
-          else
-             echo "ERROR: No se encontró música válida."
-             exit 1
-          fi
-          echo "------------------------------"
+          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # E. TRANSMISIÓN BROADCAST
+          # D. Transmisión (URL estándar y Secreto corregido con $)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/{{ secrets.YOUTUBE_STREAM_
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_
           KEY }}"

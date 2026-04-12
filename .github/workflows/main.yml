@@ -1,7 +1,7 @@
 name: Transmision Ruta Karaoke
 
 on:
-  workflow_dispatch: # Esto te da un botón de "Play" manual
+  workflow_dispatch:
 
 jobs:
   stream:
@@ -16,8 +16,11 @@ jobs:
       - name: Transmitir a YouTube
         shell: bash
         run: |
-          # Generamos la lista de canciones para que no haya problemas con los espacios
+          # Generamos la lista de canciones
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # Iniciamos la transmisión
-          ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt -c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"
+          # Transmisión con ajuste de resolución (Scale)
+          ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
+          -c:v libx264 -preset veryfast -vf "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
+          -b:v 2500k -maxrate 2500k -bufsize 5000k -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

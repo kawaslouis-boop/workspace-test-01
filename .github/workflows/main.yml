@@ -1,0 +1,23 @@
+name: Transmision Ruta Karaoke
+
+on:
+  workflow_dispatch: # Esto te da un botón de "Play" manual
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar archivos
+        uses: actions/checkout@v3
+
+      - name: Instalar FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Transmitir a YouTube
+        shell: bash
+        run: |
+          # Generamos la lista de canciones para que no haya problemas con los espacios
+          for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
+          
+          # Iniciamos la transmisión
+          ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt -c:v libx264 -preset veryfast -b:v 2500k -maxrate 2500k -bufsize 5000k -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

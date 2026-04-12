@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V21 Blindaje Final
+name: Transmision Ruta Karaoke - V22 Blindaje Final
 
 on:
   workflow_dispatch:
@@ -18,19 +18,19 @@ jobs:
       - name: 3. Auditoría y Transmisión Aleatoria
         shell: bash
         run: |
-          # A. Crear video de fondo
+          # A. Video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Limpieza de canciones (Filtrar archivos corruptos)
+          # B. Limpiar y organizar música (Búsqueda profunda)
           mkdir -p radio_music
           count=0
-          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
-            # ffprobe revisa si el archivo es válido
+          # Buscamos archivos .mp3 en raíz y carpetas, ignorando la carpeta de destino
+          find . -maxdepth 2 -iname "*.mp3" ! -path "./radio_music/*" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
               cp "$f" "radio_music/s_$count.mp3"
               count=$((count+1))
             else
-              echo "ARCHIVO RECHAZADO: $f"
+              echo "SALTADO (Dañado): $f"
             fi
           done
 
@@ -43,7 +43,7 @@ jobs:
 
           echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # D. Transmisión (Sintaxis de secreto corregida con $)
+          # D. Transmisión (Sintaxis corregida con el símbolo $)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

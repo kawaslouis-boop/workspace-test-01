@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - Blindaje Final
+name: Transmision Ruta Karaoke - V14 Estabilidad Total
 
 on:
   workflow_dispatch:
@@ -13,34 +13,36 @@ jobs:
       - name: 2. Instalar FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 3. Limpieza de Nombres y Transmisión
+      - name: 3. Limpieza de Auditoría y Transmisión
         shell: bash
         run: |
-          # A. Crear video de fondo desde tu logo
+          # A. Crear video de fondo estable
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. NORMALIZAR NOMBRES (Quitar espacios y tildes automáticamente)
-          echo "Normalizando nombres de canciones..."
+          # B. NORMALIZAR ARCHIVOS (Eliminar espacios y tildes de raíz)
+          echo "Saneando nombres de canciones..."
           for f in *.mp3; do
             [ -e "$f" ] || continue
-            # Quitamos espacios y caracteres especiales para que FFmpeg no se trabe
-            nuevo_nombre=$(echo "$f" | tr ' ' '_' | sed 's/[áéíóúÁÉÍÓÚ]/x/g')
-            mv "$f" "$nuevo_nombre"
+            # Cambiamos espacios por guiones y quitamos tildes
+            nuevo=$(echo "$f" | tr ' ' '_' | sed 's/[áéíóúÁÉÍÓÚ]/x/g' | tr -d "()")
+            mv "$f" "$nuevo"
           done
 
-          # C. Generar lista de reproducción limpia
+          # C. Crear lista de reproducción (Loop Infinito)
           rm -f list.txt
           for f in *.mp3; do
             echo "file '$PWD/$f'" >> list.txt
           done
           
-          echo "--- LISTA AUDITADA ---"
+          echo "--- LISTA GENERADA ---"
           cat list.txt
           echo "----------------------"
 
-          # D. IGNICIÓN DE LA RADIO (Bitrate constante para evitar el buffering)
-          ffmpeg -re -stream_loop -1 -i fondo.mp4 -f concat -safe 0 -i list.txt \
+          # D. TRANSMISIÓN BROADCAST (Video y Audio en bucle infinito)
+          # Forzamos que el audio también sea un bucle (-stream_loop -1)
+          ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
+          -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
-          -b:v 2000k -minrate 2000k -maxrate 2000k -bufsize 4000k \
-          -r 30 -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
+          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

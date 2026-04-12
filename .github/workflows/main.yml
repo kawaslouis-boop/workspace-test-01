@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V26 Victoria
+name: Transmision Ruta Karaoke - V27 Victoria Final
 
 on:
   workflow_dispatch:
@@ -17,35 +17,40 @@ jobs:
 
       - name: 3. Auditoría y Transmisión
         shell: bash
+        env:
+          # Aquí amarramos la llave con doble candado
+          LLAVE_YOUTUBE: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Crear video de fondo
+          # A. Video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Limpieza de canciones (Ignorar archivos corruptos como pista_2)
-          mkdir -p radio_music
-          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
+          # B. Filtrar canciones (Si ffprobe falla, la canción se descarta)
+          mkdir -p lista_limpia
+          count=0
+          for f in *.mp3; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "radio_music/$(basename "$f")"
+              cp "$f" "lista_limpia/s_$count.mp3"
+              count=$((count+1))
             else
-              echo "ARCHIVO DAÑADO SALTADO: $f"
+              echo "CANCION DAÑADA DESCARTADA: $f"
             fi
           done
 
-          # C. Shuffle (Mezcla)
-          ls radio_music/*.mp3 | shuf > playlist.txt
+          # C. Crear lista aleatoria
+          ls lista_limpia/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
           done < playlist.txt
 
-          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones."
+          echo "AUDITORÍA: Tenemos $count canciones listas para sonar."
 
-          # D. TRANSMISIÓN (Sintaxis ultra-segura para la llave)
+          # D. Transmitir (Usando la variable segura $LLAVE_YOUTUBE)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
-          _KEY }}"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$LLAVE_
+          YOUTUBE"

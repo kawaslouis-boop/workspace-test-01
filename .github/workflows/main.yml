@@ -1,53 +1,18 @@
-name: Transmision Ruta Karaoke - V34 Final
-
+name: Radio Activa
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */6 * * *'
-
 jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Clonar archivos
-        uses: actions/checkout@v4
-
-      - name: 2. Instalar FFmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-
-      - name: 3. Auditoría y Transmisión
-        shell: bash
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - env:
+          KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Video de fondo
-          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
-
-          # B. Limpieza de canciones (Ignorar archivos corruptos)
-          mkdir -p radio_music
-          count=0
-          find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
-            if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "radio_music/s_$count.mp3"
-              count=$((count+1))
-            else
-              echo "RECHAZADO: $f"
-            fi
-          done
-
-          # C. Mezcla Aleatoria
-          ls radio_music/*.mp3 | shuf > playlist.txt
+          ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p fondo.mp4 -y
           rm -f list.txt
-          while read -r s; do
-            echo "file '$s'" >> list.txt
-          done < playlist.txt
-
-          echo "AUDITORÍA: Radio lista con $count canciones válidas."
-
-          # D. TRANSMISIÓN (URL OFICIAL Y LLAVE EN UNA SOLA LÍNEA)
-          ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
-          -map 0:v:0 -map 1:a:0 \
-          -c:v libx264 -preset ultrafast -tune stillimage \
-          -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
-          -pix_fmt yuv420p -g 60 \
-          -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
-          _KEY }}"
+          for f in *.mp3; do ffprobe -v error "$f" >/dev/null 2>&1 && echo "file '$f'" >> list.txt; done
+          shuf list.txt > list_final.txt
+          ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list_final.txt -c:v libx264 -preset ultrafast -b:v 2500k -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -f flv "rtmp://a.rtmp.youtube.com/live2/$KEY"
+          

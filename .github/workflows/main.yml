@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V28 Final
+name: Transmision Ruta Karaoke - V29 Correccion URL
 
 on:
   workflow_dispatch:
@@ -18,32 +18,33 @@ jobs:
       - name: 3. Auditoría y Transmisión
         shell: bash
         env:
-          # Aquí guardamos la llave en una variable segura
+          # Se asegura de que el secreto se asigne correctamente a la variable
           CLAVE_YOUTUBE: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Crear video de fondo
+          # A. Crear video de fondo estable
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Limpieza de canciones (Mover solo las buenas)
+          # B. Organizar música (Ignorar archivos corruptos)
           mkdir -p radio_music
           find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
               cp "$f" "radio_music/"
             else
-              echo "CANCION DAÑADA SALTADA: $f"
+              echo "Archivo saltado: $f"
             fi
           done
 
-          # C. Shuffle (Mezcla)
+          # C. Crear lista de reproducción aleatoria
           ls radio_music/*.mp3 | shuf > playlist.txt
           rm -f list.txt
           while read -r s; do
             echo "file '$s'" >> list.txt
           done < playlist.txt
 
-          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones."
+          echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones válidas."
 
-          # D. TRANSMISIÓN (Usando la variable segura $CLAVE_YOUTUBE)
+          # D. TRANSMISIÓN (Utilizando el servidor oficial de YouTube)
+          # Se usa rtmp://a.rtmp.youtube.com/live2/ seguido de la clave de transmisión
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \

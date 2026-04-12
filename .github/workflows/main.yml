@@ -1,4 +1,4 @@
-name: Transmision Ruta Karaoke - V25 Emergencia
+name: Transmision Ruta Karaoke - V26 Victoria
 
 on:
   workflow_dispatch:
@@ -17,22 +17,17 @@ jobs:
 
       - name: 3. Auditoría y Transmisión
         shell: bash
-        env:
-          # Aquí amarramos la llave de forma segura
-          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # A. Crear video de fondo estable
+          # A. Crear video de fondo
           ffmpeg -loop 1 -i logo.png -c:v libx264 -t 10 -pix_fmt yuv420p -vf "scale=1280:720" fondo.mp4 -y
 
-          # B. Organizar música (Saltar archivos malos)
+          # B. Limpieza de canciones (Ignorar archivos corruptos como pista_2)
           mkdir -p radio_music
-          count=0
           find . -maxdepth 1 -iname "*.mp3" | while read -r f; do
             if ffprobe -v error "$f" > /dev/null 2>&1; then
-              cp "$f" "radio_music/s_$count.mp3"
-              count=$((count+1))
+              cp "$f" "radio_music/$(basename "$f")"
             else
-              echo "RECHAZADO: $f"
+              echo "ARCHIVO DAÑADO SALTADO: $f"
             fi
           done
 
@@ -45,12 +40,12 @@ jobs:
 
           echo "AUDITORÍA: Radio lista con $(wc -l < list.txt) canciones."
 
-          # D. TRANSMISIÓN (URL Estándar de YouTube y Variable de Entorno)
+          # D. TRANSMISIÓN (Sintaxis ultra-segura para la llave)
           ffmpeg -re -stream_loop -1 -i fondo.mp4 -stream_loop -1 -f concat -safe 0 -i list.txt \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset ultrafast -tune stillimage \
           -b:v 2500k -minrate 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -g 60 \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUT
-          UBE_KEY"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM
+          _KEY }}"

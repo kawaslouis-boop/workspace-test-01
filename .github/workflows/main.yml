@@ -10,20 +10,21 @@ jobs:
       - name: Clonar archivos
         uses: actions/checkout@v3
 
-      - name: Instalar FFmpeg
+      - name: Instalar motor de audio
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Transmitir a YouTube
         shell: bash
         run: |
-          # Creamos la lista de canciones limpiando cualquier rastro anterior
+          # Limpiar lista anterior
           rm -f list.txt
+          # Crear lista nueva (asegúrate de que no haya caracteres raros en los nombres)
           for f in ./*.mp3; do echo "file '$PWD/$f'" >> list.txt; done
           
-          # COMANDO DE FUERZA BRUTA PARA IMAGEN FIJA
+          # COMANDO SIMPLIFICADO DE ALTA COMPATIBILIDAD
           ffmpeg -re -loop 1 -i logo.png -f concat -safe 0 -i list.txt \
-          -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
+          -c:v libx264 -preset veryfast -tune stillimage -pix_fmt yuv420p \
           -vf "scale=1280:720,format=yuv420p" \
-          -r 30 -g 60 -b:v 3000k -minrate 3000k -maxrate 3000k -bufsize 6000k \
+          -r 30 -g 60 -b:v 2000k -maxrate 2000k -bufsize 4000k \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_STREAM_KEY }}"

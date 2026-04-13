@@ -8,7 +8,6 @@ concurrency:
   group: radio-stream
   cancel-in-progress: true
 
-# --- NUEVO: Permisos para que el sistema pueda borrar el historial ---
 permissions:
   actions: write
   contents: read
@@ -17,21 +16,34 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      # --- NUEVO: El "Conserje" que borra los workflows viejos ---
-      - name: Limpiar papeleo (Borrar workflows viejos)
+      - name: 1. Limpiar papeleo (Solo verás el proceso actual)
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ github.token }}
           repository: ${{ github.repository }}
           retain_days: 0
-          keep_minimum_runs: 1 # Obliga a que solo quede 1 (el que está corriendo)
+          keep_minimum_runs: 1
 
-      # --- TUS PASOS NORMALES DE RADIO ---
       - uses: actions/checkout@v4
-      - name: Instalar Consola Profesional (Liquidsoap)
-        run: sudo apt-get update && sudo apt-get install -y liquidsoap
-      - name: Transmitir con Metadata Dinamica
+
+      - name: 2. Instalar Consola y Herramientas (Liquidsoap + 7z)
         run: |
+          sudo apt-get update
+          sudo apt-get install -y liquidsoap p7zip-full
+
+      - name: 3. Abrir Bovedas (V1, V2, V3...) y acumular musica
+        run: |
+          mkdir -p musica_segura
+          # El bucle 'for' busca CUALQUIER archivo .zip y lo extrae
+          # 7z une automáticamente los pedazos (.z01, .z02) si el .zip está presente
+          for f in *.zip; do 
+            echo "Procesando boveda: $f"
+            7z x "$f" -p"${{ secrets.CLAVE_ZIP }}" -o"musica_segura/" -y || true
+          done
+
+      - name: 4. Transmisión de Ruta Karaoke
+        run: |
+          cd musica_segura
           rm -f list.txt
           ls *.mp3 > list.txt
           
@@ -45,7 +57,7 @@ jobs:
             password="${{ secrets.CLAVE_RADIO }}",
             mount="radio.mp3",
             name="Ruta Karaoke",
-            description="Canta en tu auto - 24/7 Estación Digital",
+            description="Canta a todo pulmon - 24/7 Estacion Digital",
             genre="Karaoke",
             mksafe(musica)
           )

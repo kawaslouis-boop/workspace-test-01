@@ -16,7 +16,7 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Limpiar papeleo (Solo verás el proceso actual)
+      - name: 1. Limpiar historial de procesos
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ github.token }}
@@ -24,38 +24,41 @@ jobs:
           retain_days: 0
           keep_minimum_runs: 1
 
-      - uses: actions/checkout@v4
+      - name: 2. Descargar repositorio
+        uses: actions/checkout@v4
 
-      - name: 2. Instalar Consola y Herramientas (Liquidsoap + 7z)
+      - name: 3. Instalar herramientas de audio y extracción
         run: |
           sudo apt-get update
           sudo apt-get install -y liquidsoap p7zip-full
 
-      - name: 3. Abrir Bovedas (V1, V2, V3...) y acumular musica
+      - name: 4. Extraer todas las Bovedas (ZIP) acumuladas
         run: |
           mkdir -p musica_segura
-          # El bucle 'for' busca CUALQUIER archivo .zip y lo extrae
-          # 7z une automáticamente los pedazos (.z01, .z02) si el .zip está presente
+          # Busca todos los archivos .zip y los extrae usando la clave maestra.
+          # 7z une automáticamente las partes (.z01, .z02) si el .zip principal existe.
           for f in *.zip; do 
-            echo "Procesando boveda: $f"
+            echo "Procesando archivo: $f"
             7z x "$f" -p"${{ secrets.CLAVE_ZIP }}" -o"musica_segura/" -y || true
           done
 
-      - name: 4. Transmisión de Ruta Karaoke
+      - name: 5. Ejecutar Transmisión Blindada
         run: |
           cd musica_segura
+          # Generar lista de reproducción basada en los MP3 extraídos
           rm -f list.txt
           ls *.mp3 > list.txt
           
+          # Crear configuración de Liquidsoap con variables ocultas
           cat << 'EOF' > radio.liq
           musica = playlist(mode="randomize", "list.txt")
           
           output.icecast(
             %mp3(bitrate=96),
-            host="radio.nitro-server.uk",
-            port=9120,
+            host="${{ secrets.RADIO_HOST }}",
+            port=${{ secrets.RADIO_PORT }},
             password="${{ secrets.CLAVE_RADIO }}",
-            mount="radio.mp3",
+            mount="${{ secrets.RADIO_MOUNT }}",
             name="Ruta Karaoke",
             description="Canta a todo pulmon - 24/7 Estacion Digital",
             genre="Karaoke",
@@ -63,4 +66,5 @@ jobs:
           )
           EOF
           
+          # Iniciar la radio
           liquidsoap radio.liq

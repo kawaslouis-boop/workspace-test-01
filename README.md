@@ -1,2 +1,2 @@
 # ruta-karaoke
-Proyecto de radio digital 24/7 con pistas de karaoke procesadas para "Ruta Karaoke". Transmisión automática vía GitHub Actions.
+Ruta Karaoke - Tu estación digital 24/7. Cantá a todo pulmón los mejores éxitos instrumentales desde Managua para el mundo.

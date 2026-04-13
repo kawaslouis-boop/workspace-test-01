@@ -2,44 +2,53 @@ name: Ruta Karaoke Live Stream
 on:
   workflow_dispatch:
   schedule:
-    # Se programa el relevo cada 2 horas para vencer el límite de GitHub
     - cron: '0 */2 * * *'
 
 concurrency:
   group: radio-stream
   cancel-in-progress: true
 
+# --- NUEVO: Permisos para que el sistema pueda borrar el historial ---
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
+      # --- NUEVO: El "Conserje" que borra los workflows viejos ---
+      - name: Limpiar papeleo (Borrar workflows viejos)
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 1 # Obliga a que solo quede 1 (el que está corriendo)
+
+      # --- TUS PASOS NORMALES DE RADIO ---
       - uses: actions/checkout@v4
       - name: Instalar Consola Profesional (Liquidsoap)
         run: sudo apt-get update && sudo apt-get install -y liquidsoap
       - name: Transmitir con Metadata Dinamica
         run: |
-          # 1. Crear el inventario de pistas
           rm -f list.txt
           ls *.mp3 > list.txt
           
-          # 2. Crear las instrucciones de la consola
           cat << 'EOF' > radio.liq
-          # Cargar la lista y barajarla automáticamente
           musica = playlist(mode="randomize", "list.txt")
           
-          # Enviar la señal al servidor leyendo la metadata nativa
           output.icecast(
             %mp3(bitrate=96),
             host="radio.nitro-server.uk",
             port=9120,
-            password="4CRwycMC",
+            password="${{ secrets.CLAVE_RADIO }}",
             mount="radio.mp3",
             name="Ruta Karaoke",
-            description="Canta a todo pulmon",
+            description="Canta en tu auto - 24/7 Estación Digital",
             genre="Karaoke",
             mksafe(musica)
           )
           EOF
           
-          # 3. Arrancar el motor
           liquidsoap radio.liq

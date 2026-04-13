@@ -13,19 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: |
-          # 1. Escanear y barajar
+      - name: Instalar Consola Profesional (Liquidsoap)
+        run: sudo apt-get update && sudo apt-get install -y liquidsoap
+      - name: Transmitir con Metadata Dinamica
+        run: |
+          # 1. Crear el inventario de pistas
           rm -f list.txt
-          for f in *.mp3; do ffprobe -v error "$f" >/dev/null 2>&1 && echo "file '$f'" >> list.txt; done
-          shuf list.txt > list_final.txt
+          ls *.mp3 > list.txt
           
-          # 2. Transmisión con actualización de títulos constante
-          # Usamos -ice_genre para ayudar a la categorización y el mapeo de metadata
-          ffmpeg -re -stream_loop -1 -f concat -safe 0 -i list_final.txt \
-          -vn -c:a libmp3lame -b:a 96k -ar 44100 -content_type audio/mpeg \
-          -ice_name "Ruta Karaoke" \
-          -ice_genre "Karaoke" \
-          -map_metadata 0 \
-          -id3v2_version 3 \
-          -f mp3 "icecast://source:4CRwycMC@radio.nitro-server.uk:9120/radio.mp3"
+          # 2. Crear las instrucciones de la consola
+          cat << 'EOF' > radio.liq
+          # Cargar la lista y barajarla automáticamente
+          musica = playlist(mode="randomize", "list.txt")
+          
+          # Enviar la señal al servidor leyendo la metadata nativa
+          output.icecast(
+            %mp3(bitrate=96),
+            host="radio.nitro-server.uk",
+            port=9120,
+            password="4CRwycMC",
+            mount="radio.mp3",
+            name="Ruta Karaoke",
+            description="Canta a todo pulmon",
+            genre="Karaoke",
+            mksafe(musica)
+          )
+          EOF
+          
+          # 3. Arrancar el nuevo motor
+          liquidsoap radio.liq

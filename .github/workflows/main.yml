@@ -2,7 +2,8 @@ name: Ruta Karaoke Live Stream
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */5 * * *'
+    # Se programa el relevo cada 2 horas para vencer el límite de GitHub
+    - cron: '0 */2 * * *'
 
 concurrency:
   group: radio-stream
@@ -40,5 +41,5 @@ jobs:
           )
           EOF
           
-          # 3. Arrancar el nuevo motor
+          # 3. Arrancar el motor
           liquidsoap radio.liq

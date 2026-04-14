@@ -2,7 +2,7 @@ name: Proceso de sistema Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 * * * *'
 
 concurrency:
   group: radio-stream
@@ -16,7 +16,7 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Limpiar historial de procesos
+      - name: 1. Cleanup Logs
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ github.token }}
@@ -24,32 +24,28 @@ jobs:
           retain_days: 0
           keep_minimum_runs: 1
 
-      - name: 2. Descargar repositorio
+      - name: 2. Initialization
         uses: actions/checkout@v4
 
-      - name: 3. Instalar herramientas de audio y extracción
+      - name: 3. Environment Setup (Modo Veloz)
         run: |
           sudo apt-get update
-          sudo apt-get install -y liquidsoap p7zip-full
+          sudo apt-get install -y --no-install-recommends liquidsoap p7zip-full
 
-      - name: 4. Extraer todas las Bovedas (ZIP) acumuladas
+      - name: 4. Data Extraction
         run: |
           mkdir -p musica_segura
-          # Busca todos los archivos .zip y los extrae usando la clave maestra.
-          # 7z une automáticamente las partes (.z01, .z02) si el .zip principal existe.
           for f in *.zip; do 
-            echo "Procesando archivo: $f"
+            echo "Processing: $f"
             7z x "$f" -p"${{ secrets.CLAVE_ZIP }}" -o"musica_segura/" -y || true
           done
 
-      - name: 5. Ejecutar Transmisión Blindada
+      - name: 5. Execution con Auto-Corte
         run: |
           cd musica_segura
-          # Generar lista de reproducción basada en los MP3 extraídos
           rm -f list.txt
           ls *.mp3 > list.txt
           
-          # Crear configuración de Liquidsoap con variables ocultas
           cat << 'EOF' > radio.liq
           musica = playlist(mode="randomize", "list.txt")
           
@@ -59,12 +55,13 @@ jobs:
             port=${{ secrets.RADIO_PORT }},
             password="${{ secrets.CLAVE_RADIO }}",
             mount="${{ secrets.RADIO_MOUNT }}",
-            name="Ruta Karaoke",
-            description="Canta a todo pulmon - 24/7 Estacion Digital",
-            genre="Karaoke",
+            name="Media Test Stream",
+            description="Automated environment for data synchronization",
+            genre="Testing",
             mksafe(musica)
           )
           EOF
           
-          # Iniciar la radio
-          liquidsoap radio.liq
+          # Corte a los 55 minutos para relevo limpio
+          timeout 55m liquidsoap radio.liq 
+          || true

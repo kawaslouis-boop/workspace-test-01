@@ -2,10 +2,12 @@ name: Proceso de sistema Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    # Retornamos al relevo de 2 horas (Disparo en el minuto 0 cada 2 horas)
+    - cron: '0 */2 * * *'
 
 concurrency:
   group: radio-stream
+  # Esta regla es la que hace el relevo: el proceso nuevo cancela al viejo automáticamente.
   cancel-in-progress: true
 
 permissions:
@@ -40,14 +42,17 @@ jobs:
             7z x "$f" -p"${{ secrets.CLAVE_ZIP }}" -o"musica_segura/" -y || true
           done
 
-      - name: 5. Execution con Auto-Corte
+      - name: 5. Execution Continua (Relevo por Concurrencia)
         run: |
           cd musica_segura
-          rm -f list.txt
-          ls *.mp3 > list.txt
+          ls *.mp3 | grep -v "autodoc" > list.txt
+          ls autodoc*.mp3 > jingles_list.txt || echo "sin_jingles" > jingles_list.txt
           
           cat << 'EOF' > radio.liq
+          jingles = playlist(mode="randomize", "jingles_list.txt")
           musica = playlist(mode="randomize", "list.txt")
+          
+          radio = rotate(weights=[1, 5], [jingles, musica])
           
           output.icecast(
             %mp3(bitrate=96),
@@ -58,10 +63,11 @@ jobs:
             name="Media Test Stream",
             description="Automated environment for data synchronization",
             genre="Testing",
-            mksafe(musica)
+            mksafe(radio)
           )
           EOF
           
-          # Corte a los 55 minutos para relevo limpio
-          timeout 55m liquidsoap radio.liq 
-          || true
+          # Eliminamos el 'timeout'. Liquidsoap correrá indefinidamente 
+          # hasta que el próximo relevo cancele este proceso de forma natural.
+          liquidsoap radio.liq
+          

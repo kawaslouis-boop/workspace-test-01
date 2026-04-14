@@ -1,4 +1,4 @@
-name: Ruta Karaoke Live Stream
+name: Proceso de sistema Sync
 on:
   workflow_dispatch:
   schedule:

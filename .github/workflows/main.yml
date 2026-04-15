@@ -2,12 +2,13 @@ name: Proceso de sistema Sync
 on:
   workflow_dispatch:
   schedule:
-    # Retornamos al relevo de 2 horas (Disparo en el minuto 0 cada 2 horas)
+    # Póliza de Relevo Seguro: Llamado oficial cada 2 horas.
+    # Si un llamado falla, el proceso sigue vivo y el siguiente llamado (hora 4) lo rescata.
     - cron: '0 */2 * * *'
 
 concurrency:
   group: radio-stream
-  # Esta regla es la que hace el relevo: el proceso nuevo cancela al viejo automáticamente.
+  # El "Perro Guardián": El nuevo relevista entra y cancela al anterior de forma limpia.
   cancel-in-progress: true
 
 permissions:
@@ -42,9 +43,10 @@ jobs:
             7z x "$f" -p"${{ secrets.CLAVE_ZIP }}" -o"musica_segura/" -y || true
           done
 
-      - name: 5. Execution Continua (Relevo por Concurrencia)
+      - name: 5. Execution Continua (Motor Blindado)
         run: |
           cd musica_segura
+          # Separación de activos: Música normal vs Archivos de camuflaje (autodoc)
           ls *.mp3 | grep -v "autodoc" > list.txt
           ls autodoc*.mp3 > jingles_list.txt || echo "sin_jingles" > jingles_list.txt
           
@@ -52,6 +54,8 @@ jobs:
           jingles = playlist(mode="randomize", "jingles_list.txt")
           musica = playlist(mode="randomize", "list.txt")
           
+          # Configuración de mezcla: 1 jingle por cada 5 canciones. 
+          # Si no hay jingles disponibles, Liquidsoap usará solo la música sin dar error.
           radio = rotate(weights=[1, 5], [jingles, musica])
           
           output.icecast(
@@ -67,7 +71,5 @@ jobs:
           )
           EOF
           
-          # Eliminamos el 'timeout'. Liquidsoap correrá indefinidamente 
-          # hasta que el próximo relevo cancele este proceso de forma natural.
+          # Ejecución infinita. Solo se detendrá cuando GitHub envíe el próximo relevo exitoso.
           liquidsoap radio.liq
-          

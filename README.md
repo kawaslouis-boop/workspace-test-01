@@ -1,2 +1,2 @@
 # Proposito personal
-Aprender mas sobre la vida y de experiencias.
+Aprender mas sobre la vida y de experiencias..
